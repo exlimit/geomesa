@@ -20,7 +20,7 @@ import scala.util.Random
 class Z2Test extends Specification {
 
   val rand = new Random(-574)
-  val maxInt = Z2SFC.lon.precision.toInt
+  val maxInt = LegacyZ2SFC.lon.precision.toInt
   def nextDim() = rand.nextInt(maxInt)
 
   def padTo(s: String) = (new String(Array.fill(62)('0')) + s).takeRight(62)
@@ -46,7 +46,7 @@ class Z2Test extends Specification {
     }
 
     "apply and unapply max values" >> {
-      val Z2curve = Z2SFC
+      val Z2curve = LegacyZ2SFC
       val (x, y) = (Z2curve.lon.precision, Z2curve.lat.precision)
       val z = Z2(x.toInt, y.toInt)
       z match { case Z2(zx, zy) =>
@@ -56,7 +56,7 @@ class Z2Test extends Specification {
     }
 
     "fail for out-of-bounds values" >> {
-      val sfc = Z2SFC
+      val sfc = LegacyZ2SFC
       forall(Seq((-180.1, 0d), (0d, -90.1), (180.1, 0d), (0d, 90.1), (-181d, -91d), (181d, 91d))) {
         case (x, y) => sfc.index(x, y) must throwAn[IllegalArgumentException]
       }
@@ -115,7 +115,7 @@ class Z2Test extends Specification {
     }
 
     "return non-empty ranges for a number of cases" >> {
-      val sfc = Z2SFC
+      val sfc = LegacyZ2SFC
 
       val ranges = Seq(
         (sfc.index(-180, -90),      sfc.index(180, 90)),        // whole world

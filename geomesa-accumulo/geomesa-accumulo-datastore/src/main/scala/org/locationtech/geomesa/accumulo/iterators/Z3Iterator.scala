@@ -13,7 +13,7 @@ import org.apache.accumulo.core.data.{ByteSequence, Key, Value, Range => AccRang
 import org.apache.accumulo.core.iterators.{IteratorEnvironment, SortedKeyValueIterator}
 import org.apache.hadoop.io.Text
 import org.locationtech.geomesa.accumulo.index.legacy.z3.Z3IndexV2
-import org.locationtech.geomesa.curve.Z3SFC
+import org.locationtech.geomesa.curve.LegacyZ3SFC
 import org.locationtech.geomesa.index.filters.Z3Filter
 import org.locationtech.sfcurve.zorder.Z3
 
@@ -123,7 +123,7 @@ object Z3Iterator {
   val TermSeparator  = ";"
   val EpochSeparator  = ","
 
-  def configure(sfc: Z3SFC,
+  def configure(sfc: LegacyZ3SFC,
                 bounds: Seq[(Double, Double, Double, Double)],
                 timesByBin: Map[Short, Seq[(Long, Long)]],
                 isPoints: Boolean,
@@ -169,7 +169,7 @@ object Z3Iterator {
     is
   }
 
-  private def decodeNonPoints(sfc: Z3SFC, x: Double, y: Double, t: Long): (Int, Int, Int) =
+  private def decodeNonPoints(sfc: LegacyZ3SFC, x: Double, y: Double, t: Long): (Int, Int, Int) =
     Z3(sfc.index(x, y, t).z & Z3IndexV2.GEOM_Z_MASK).decode
 
 
