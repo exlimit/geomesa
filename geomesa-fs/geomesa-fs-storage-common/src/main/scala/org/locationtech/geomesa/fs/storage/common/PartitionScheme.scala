@@ -193,9 +193,8 @@ class Z2Scheme(bits: Int, // number of bits
   require(bits % 2 == 0, "Resolution must be an even number")
 
   // note: z2sfc resolution is per dimension
-  private val resolution = math.pow(2, bits / 2).toInt
-  private val z2 = new Z2SFC(resolution)
-  private val digits = math.ceil(math.log10(math.pow(resolution, 2))).toInt
+  private val z2 = new Z2SFC(bits / 2)
+  private val digits = math.ceil(math.log10(math.pow(2, bits))).toInt
   private val geomAttrIndex = sft.indexOf(geomAttribute)
 
   override def getPartitionName(sf: SimpleFeature): String = {
@@ -232,7 +231,7 @@ class Z2Scheme(bits: Int, // number of bits
       "name" -> "z2",
       "opts" -> Map(
         GeomAttribute -> geomAttribute,
-        Z2Resolution -> resolution.toString).asJava))
+        Z2Resolution -> bits.toString).asJava))
     conf.root().render(ConfigRenderOptions.concise)
   }
 
