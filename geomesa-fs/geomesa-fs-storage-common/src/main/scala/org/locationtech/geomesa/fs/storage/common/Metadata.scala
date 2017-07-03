@@ -6,7 +6,7 @@
  * http://www.opensource.org/licenses/apache2.0.php.
  ***********************************************************************/
 
-package org.locationtech.geomesa.parquet
+package org.locationtech.geomesa.fs.storage.common
 
 import java.io.IOException
 
@@ -18,7 +18,8 @@ import org.apache.hadoop.fs.Path
 /**
   * Created by ahulbert on 6/30/17.
   */
-class Metadata(path: Path, conf: Configuration) extends LazyLogging {
+class Metadata(path: Path,
+               conf: Configuration) extends LazyLogging {
 
   private val fs = path.getFileSystem(conf)
   private var cached: List[String] = read()
@@ -51,4 +52,5 @@ class Metadata(path: Path, conf: Configuration) extends LazyLogging {
   def getPartitions: Seq[String] = {
     cached
   }
+
 }

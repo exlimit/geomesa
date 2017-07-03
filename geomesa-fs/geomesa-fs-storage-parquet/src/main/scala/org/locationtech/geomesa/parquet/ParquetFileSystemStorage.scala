@@ -23,7 +23,7 @@ import org.apache.parquet.filter2.compat.FilterCompat
 import org.apache.parquet.hadoop.ParquetReader
 import org.geotools.data.Query
 import org.locationtech.geomesa.fs.storage.api._
-import org.locationtech.geomesa.fs.storage.common.LeafStoragePartition
+import org.locationtech.geomesa.fs.storage.common.{LeafStoragePartition, Metadata, StorageUtils}
 import org.locationtech.geomesa.utils.geotools.SimpleFeatureTypes
 import org.opengis.feature.simple.{SimpleFeature, SimpleFeatureType}
 
@@ -62,8 +62,9 @@ class ParquetFileSystemStorage(root: Path,
       val path = new Path(new Path(root, k), metaFile)
 
       if (!fs.exists(path)) {
+        val partitions = StorageUtils.buildPartitionList(root, fs, k, getPartitionScheme(k), fileExtension).map(getPartition).map(_.getName)
         val f = fs.create(path)
-        val parts = buildPartitionList(new Path(root, k), "", 0, getPartitionScheme(k).maxDepth()).foreach { p =>
+        partitions.foreach { p =>
           f.writeBytes(p)
           f.write('\n')
         }
@@ -128,9 +129,6 @@ class ParquetFileSystemStorage(root: Path,
   }
 
   override def listPartitions(typeName: String): util.List[Partition] = {
-//    import scala.collection.JavaConversions._
-//    buildPartitionList(new Path(root, typeName), "", 0,
-//      getPartitionScheme(typeName).maxDepth()).map(getPartition)
     import scala.collection.JavaConversions._
     ParquetFileSystemStorage.res.getOrElseUpdate(typeName, metaData(typeName).getPartitions.map(getPartition))
   }

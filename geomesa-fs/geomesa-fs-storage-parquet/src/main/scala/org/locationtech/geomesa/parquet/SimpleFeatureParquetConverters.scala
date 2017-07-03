@@ -112,33 +112,33 @@ object SimpleFeatureParquetConverters {
       case ObjectType.INT =>
         new SimpleFeatureFieldConverter(parent) {
           override def addInt(value: Int): Unit = {
-            parent.current.setAttributeNoConvert(index, value)
+            parent.current.setAttributeNoConvert(index, Int.box(value))
           }
         }
 
       case ObjectType.DOUBLE =>
         new SimpleFeatureFieldConverter(parent) {
           override def addInt(value: Int): Unit = {
-            parent.current.setAttributeNoConvert(index, value.toDouble)
+            parent.current.setAttributeNoConvert(index, Double.box(value.toDouble))
           }
 
           override def addDouble(value: Double): Unit = {
-            parent.current.setAttributeNoConvert(index, value)
+            parent.current.setAttributeNoConvert(index, Double.box(value))
           }
 
           override def addFloat(value: Float): Unit = {
-            parent.current.setAttributeNoConvert(index, value.toDouble)
+            parent.current.setAttributeNoConvert(index, Double.box(value.toDouble))
           }
 
           override def addLong(value: Long): Unit = {
-            parent.current.setAttributeNoConvert(index, value.toDouble)
+            parent.current.setAttributeNoConvert(index, Double.box(value.toDouble))
           }
         }
 
       case ObjectType.LONG =>
         new SimpleFeatureFieldConverter(parent) {
           override def addLong(value: Long): Unit = {
-            parent.current.setAttributeNoConvert(index, value)
+            parent.current.setAttributeNoConvert(index, Long.box(value))
           }
         }
 
@@ -146,14 +146,14 @@ object SimpleFeatureParquetConverters {
       case ObjectType.FLOAT =>
         new SimpleFeatureFieldConverter(parent) {
           override def addFloat(value: Float): Unit = {
-            parent.current.setAttributeNoConvert(index, value)
+            parent.current.setAttributeNoConvert(index, Float.box(value))
           }
         }
 
       case ObjectType.BOOLEAN =>
         new SimpleFeatureFieldConverter(parent) {
           override def addBoolean(value: Boolean): Unit = {
-            parent.current.setAttributeNoConvert(index, value)
+            parent.current.setAttributeNoConvert(index, Boolean.box(value))
           }
         }
 
