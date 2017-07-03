@@ -13,21 +13,43 @@ trait NormalizedDimension {
   def max: Double
   def precision: Long
 
-  def normalize(x: Double): Int = math.ceil((x - min) / (max - min) * precision).toInt
-
-  def denormalize(x: Int): Double = if (x == 0) { min } else { (x - 0.5d) * (max - min) / precision + min }
+  def normalize(x: Double): Int = math.min((precision - 1).toInt, math.floor((x - min) / (max - min) * precision).toInt)
+  def denormalize(x: Int): Double = math.min(max, min + (x + 0.5d) * (max - min) / precision)
 }
 
-case class NormalizedLat(precision: Long) extends NormalizedDimension {
-  override val min = -90.0
-  override val max = 90.0
-}
+object NormalizedDimension {
 
-case class NormalizedLon(precision: Long) extends NormalizedDimension {
-  override val min = -180.0
-  override val max = 180.0
-}
+  case class NormalizedLat(precision: Long) extends NormalizedDimension {
+    override val min = -90.0
+    override val max = 90.0
+  }
 
-case class NormalizedTime(precision: Long, max: Double) extends NormalizedDimension {
-  override val min = 0.0
+  case class NormalizedLon(precision: Long) extends NormalizedDimension {
+    override val min = -180.0
+    override val max = 180.0
+  }
+
+  case class NormalizedTime(precision: Long, max: Double) extends NormalizedDimension {
+    override val min = 0.0
+  }
+
+  // legacy normalization, doesn't correctly bin lower bound
+  trait SemiNormalizedDimension extends NormalizedDimension {
+    override def normalize(x: Double): Int = math.ceil((x - min) / (max - min) * precision).toInt
+    override def denormalize(x: Int): Double = if (x == 0) { min } else { (x - 0.5d) * (max - min) / precision + min }
+  }
+
+  case class SemiNormalizedLat(precision: Long) extends SemiNormalizedDimension {
+    override val min = -90.0
+    override val max = 90.0
+  }
+
+  case class SemiNormalizedLon(precision: Long) extends SemiNormalizedDimension {
+    override val min = -180.0
+    override val max = 180.0
+  }
+
+  case class SemiNormalizedTime(precision: Long, max: Double) extends SemiNormalizedDimension {
+    override val min = 0.0
+  }
 }

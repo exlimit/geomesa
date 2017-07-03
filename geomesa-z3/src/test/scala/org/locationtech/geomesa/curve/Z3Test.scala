@@ -20,7 +20,7 @@ import scala.util.Random
 class Z3Test extends Specification {
 
   val rand = new Random(-574)
-  val maxInt = Z3SFC(TimePeriod.Week).lon.precision.toInt
+  val maxInt = LegacyZ3SFC(TimePeriod.Week).lon.precision.toInt
   def nextDim() = rand.nextInt(maxInt)
 
   def padTo(s: String) = (new String(Array.fill(63)('0')) + s).takeRight(63)
@@ -48,7 +48,7 @@ class Z3Test extends Specification {
     }
 
     "apply and unapply max values" >> {
-      val z3curve = Z3SFC(TimePeriod.Week)
+      val z3curve = LegacyZ3SFC(TimePeriod.Week)
       val (x, y, t) = (z3curve.lon.precision, z3curve.lat.precision, z3curve.time.precision)
       val z = Z3(x.toInt, y.toInt, t.toInt)
       z match { case Z3(zx, zy, zt) =>
@@ -59,7 +59,7 @@ class Z3Test extends Specification {
     }
 
     "fail for out-of-bounds values" >> {
-      val sfc = Z3SFC(TimePeriod.Week)
+      val sfc = LegacyZ3SFC(TimePeriod.Week)
       val toFail = Seq(
         (-180.1, 0d, 0L),
         (180.1, 0d, 0L),
@@ -179,7 +179,7 @@ class Z3Test extends Specification {
     }
 
     "return non-empty ranges for a number of cases" >> {
-      val sfc = Z3SFC(TimePeriod.Week)
+      val sfc = LegacyZ3SFC(TimePeriod.Week)
       val week = sfc.time.max.toLong
       val day = sfc.time.max.toLong / 7
       val hour = sfc.time.max.toLong / 168

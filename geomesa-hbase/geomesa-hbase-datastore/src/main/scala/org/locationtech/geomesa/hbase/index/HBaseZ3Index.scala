@@ -10,7 +10,7 @@ package org.locationtech.geomesa.hbase.index
 
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{Filter => HFilter}
-import org.locationtech.geomesa.curve.Z3SFC
+import org.locationtech.geomesa.curve.LegacyZ3SFC
 import org.locationtech.geomesa.hbase.HBaseFilterStrategyType
 import org.locationtech.geomesa.hbase.data._
 import org.locationtech.geomesa.hbase.filters.Z3HBaseFilter
@@ -32,7 +32,7 @@ case object HBaseZ3Index extends HBaseLikeZ3Index with HBasePlatform {
     super.createPushDownFilters(ds, sft, filter, transform) ++ z3Filter.toSeq
   }
 
-  private def configureZ3PushDown(sfc: Z3SFC,
+  private def configureZ3PushDown(sfc: LegacyZ3SFC,
                                   xy: Seq[(Double, Double, Double, Double)],
                                   timeMap: Map[Short, Seq[(Long, Long)]],
                                   offset: Int): (Int, HFilter) = {

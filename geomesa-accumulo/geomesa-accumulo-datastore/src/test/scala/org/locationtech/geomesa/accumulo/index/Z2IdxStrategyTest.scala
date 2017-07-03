@@ -18,7 +18,7 @@ import org.geotools.filter.text.ecql.ECQL
 import org.junit.runner.RunWith
 import org.locationtech.geomesa.accumulo.TestWithDataStore
 import org.locationtech.geomesa.accumulo.iterators.BinAggregatingIterator
-import org.locationtech.geomesa.curve.Z2SFC
+import org.locationtech.geomesa.curve.LegacyZ2SFC
 import org.locationtech.geomesa.features.ScalaSimpleFeature
 import org.locationtech.geomesa.filter.function.{Convert2ViewerFunction, ExtendedValues}
 import org.locationtech.geomesa.filter.function.BinaryOutputEncoder.BIN_ATTRIBUTE_INDEX
@@ -65,7 +65,7 @@ class Z2IdxStrategyTest extends Specification with TestWithDataStore {
       ds.connector.createScanner(Z2Index.getTableName(sftName, ds), new Authorizations()).foreach { r =>
         val bytes = r.getKey.getRow.getBytes
         val keyZ = Longs.fromByteArray(bytes.drop(2))
-        val (x, y) = Z2SFC.invert(Z2(keyZ))
+        val (x, y) = LegacyZ2SFC.invert(Z2(keyZ))
         println(s"row: $x $y")
       }
       println()

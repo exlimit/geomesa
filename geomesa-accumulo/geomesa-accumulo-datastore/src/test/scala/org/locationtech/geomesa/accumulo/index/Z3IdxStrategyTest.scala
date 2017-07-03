@@ -18,7 +18,7 @@ import org.geotools.filter.text.ecql.ECQL
 import org.junit.runner.RunWith
 import org.locationtech.geomesa.accumulo.TestWithDataStore
 import org.locationtech.geomesa.accumulo.iterators.{BinAggregatingIterator, Z3Iterator}
-import org.locationtech.geomesa.curve.Z3SFC
+import org.locationtech.geomesa.curve.LegacyZ3SFC
 import org.locationtech.geomesa.features.ScalaSimpleFeature
 import org.locationtech.geomesa.filter.function.{Convert2ViewerFunction, ExtendedValues}
 import org.locationtech.geomesa.filter.function.BinaryOutputEncoder.BIN_ATTRIBUTE_INDEX
@@ -83,7 +83,7 @@ class Z3IdxStrategyTest extends Specification with TestWithDataStore {
         val prefix = 2 // table sharing + split
         val bytes = r.getKey.getRow.getBytes
         val keyZ = Longs.fromByteArray(bytes.drop(prefix))
-        val (x, y, t) = Z3SFC(sft.getZ3Interval).invert(Z3(keyZ))
+        val (x, y, t) = LegacyZ3SFC(sft.getZ3Interval).invert(Z3(keyZ))
         val weeks = Shorts.fromBytes(bytes(prefix), bytes(prefix + 1))
         println(s"row: $weeks $x $y $t")
       }
