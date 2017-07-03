@@ -161,7 +161,11 @@ class DateTimeScheme(fmtStr: String,
     } else {
       val (start, end) = interval.head
       val count = start.until(end, stepUnit)
-      (0 until count.toInt).map { i => start.plus(step, stepUnit) }.map { i => fmt.format(i) }
+      (0 until count.toInt).map { i =>
+        start.plus(step*i, stepUnit)
+      }.map { i =>
+        fmt.format(i)
+      }
     }
   }
 

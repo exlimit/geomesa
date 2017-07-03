@@ -10,6 +10,7 @@
 package org.locationtech.geomesa.parquet
 
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 import java.{io, util}
 
 import com.google.common.cache.{CacheBuilder, CacheLoader}
@@ -120,7 +121,7 @@ class ParquetFileSystemStorage(root: Path,
 //    buildPartitionList(new Path(root, typeName), "", 0,
 //      getPartitionScheme(typeName).maxDepth()).map(getPartition)
     import scala.collection.JavaConversions._
-    metaData(typeName).getPartitions.map(getPartition)
+    ParquetFileSystemStorage.res.getOrElseUpdate(typeName, metaData(typeName).getPartitions.map(getPartition))
   }
 
   // TODO ask the parition manager the geometry is fully covered?
@@ -211,4 +212,10 @@ class ParquetFileSystemStorage(root: Path,
   import scala.collection.JavaConversions._
   override def getPaths(typeName: String, partition: Partition): java.util.List[URI] =
     List(new Path(new Path(root, typeName), partition.getName).suffix(s".$fileExtension").toUri)
+}
+
+object ParquetFileSystemStorage {
+
+
+  private val res = new ConcurrentHashMap[String, java.util.List[Partition]]()
 }

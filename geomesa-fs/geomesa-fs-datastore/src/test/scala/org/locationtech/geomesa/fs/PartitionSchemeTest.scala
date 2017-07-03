@@ -119,6 +119,13 @@ class PartitionSchemeTest extends Specification with AllExpectations {
       ps.getCoveringPartitions(ECQL.toFilter("bbox(geom, -90.000000001, 5, 180, 6, 'EPSG:4326')")).size mustEqual 4
     }
 
+    "date time test" >> {
+      val ps = new DateTimeZ2Scheme("yyyy/DDD/HH", ChronoUnit.HOURS, 1, 2, sft, "dtg", "geom")
+      val covering = ps.getCoveringPartitions(ECQL.toFilter("dtg >= '2016-08-03T00:00:00.000Z' and dtg < '2016-08-04T00:00:00.000Z'"))
+      covering.size mustEqual 96
+      // TODO actually test the resulting values...
+    }
+
 
   }
 }
