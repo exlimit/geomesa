@@ -8,6 +8,8 @@
 
 package org.locationtech.geomesa.parquet
 
+import java.util.Date
+
 import com.vividsolutions.jts.geom.Coordinate
 import org.apache.parquet.io.api.{Binary, Converter, GroupConverter, PrimitiveConverter}
 import org.geotools.filter.identity.FeatureIdImpl
@@ -15,7 +17,7 @@ import org.geotools.geometry.jts.JTSFactoryFinder
 import org.locationtech.geomesa.features.ScalaSimpleFeature
 import org.locationtech.geomesa.features.serialization.ObjectType
 import org.opengis.feature.`type`.AttributeDescriptor
-import org.opengis.feature.simple.{SimpleFeature, SimpleFeatureType}
+import org.opengis.feature.simple.SimpleFeatureType
 
 
 class SimpleFeatureGroupConverter(sft: SimpleFeatureType) extends GroupConverter {
@@ -26,9 +28,9 @@ class SimpleFeatureGroupConverter(sft: SimpleFeatureType) extends GroupConverter
     }
   }
   private val converters = SimpleFeatureParquetConverters.converters(sft, this) :+ idConverter
-  private val numAttributes = sft.getAttributeCount
+//  private val numAttributes = sft.getAttributeCount
 
-  var current: SimpleFeature = _
+  var current: ScalaSimpleFeature = _
 
   override def start(): Unit = {
     current = new ScalaSimpleFeature("", sft)
@@ -96,47 +98,47 @@ object SimpleFeatureParquetConverters {
       case ObjectType.DATE =>
         new SimpleFeatureFieldConverter(parent) {
           override def addLong(value: Long): Unit = {
-            parent.current.setAttribute(index, value)
+            parent.current.setAttributeNoConvert(index, new Date(value))
           }
         }
 
       case ObjectType.STRING =>
         new SimpleFeatureFieldConverter(parent) {
           override def addBinary(value: Binary): Unit = {
-            parent.current.setAttribute(index, value.toStringUsingUTF8)
+            parent.current.setAttributeNoConvert(index, value.toStringUsingUTF8)
           }
         }
 
       case ObjectType.INT =>
         new SimpleFeatureFieldConverter(parent) {
           override def addInt(value: Int): Unit = {
-            parent.current.setAttribute(index, value)
+            parent.current.setAttributeNoConvert(index, value)
           }
         }
 
       case ObjectType.DOUBLE =>
         new SimpleFeatureFieldConverter(parent) {
           override def addInt(value: Int): Unit = {
-            parent.current.setAttribute(index, value.toDouble)
+            parent.current.setAttributeNoConvert(index, value.toDouble)
           }
 
           override def addDouble(value: Double): Unit = {
-            parent.current.setAttribute(index, value)
+            parent.current.setAttributeNoConvert(index, value)
           }
 
           override def addFloat(value: Float): Unit = {
-            parent.current.setAttribute(index, value.toDouble)
+            parent.current.setAttributeNoConvert(index, value.toDouble)
           }
 
           override def addLong(value: Long): Unit = {
-            parent.current.setAttribute(index, value.toDouble)
+            parent.current.setAttributeNoConvert(index, value.toDouble)
           }
         }
 
       case ObjectType.LONG =>
         new SimpleFeatureFieldConverter(parent) {
           override def addLong(value: Long): Unit = {
-            parent.current.setAttribute(index, value)
+            parent.current.setAttributeNoConvert(index, value)
           }
         }
 
@@ -144,14 +146,14 @@ object SimpleFeatureParquetConverters {
       case ObjectType.FLOAT =>
         new SimpleFeatureFieldConverter(parent) {
           override def addFloat(value: Float): Unit = {
-            parent.current.setAttribute(index, value)
+            parent.current.setAttributeNoConvert(index, value)
           }
         }
 
       case ObjectType.BOOLEAN =>
         new SimpleFeatureFieldConverter(parent) {
           override def addBoolean(value: Boolean): Unit = {
-            parent.current.setAttribute(index, value)
+            parent.current.setAttributeNoConvert(index, value)
           }
         }
 
@@ -159,7 +161,7 @@ object SimpleFeatureParquetConverters {
       case ObjectType.BYTES =>
         new SimpleFeatureFieldConverter(parent) {
           override def addBinary(value: Binary): Unit = {
-            parent.current.setAttribute(index, value.getBytes)
+            parent.current.setAttributeNoConvert(index, value.getBytes)
           }
         }
 

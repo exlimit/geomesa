@@ -23,6 +23,7 @@ import org.apache.spark.rdd.RDD
 import org.geotools.data.Query
 import org.locationtech.geomesa.fs.storage.api.FileSystemStorageFactory
 import org.locationtech.geomesa.fs.{FileSystemDataStoreFactory, PartitionUtils}
+import org.locationtech.geomesa.index.planning.QueryPlanner
 import org.locationtech.geomesa.parquet.{FilterConverter, ParquetFileSystemStorageFactory, SFParquetInputFormat, SimpleFeatureReadSupport}
 import org.locationtech.geomesa.spark.{SpatialRDD, SpatialRDDProvider}
 import org.opengis.feature.simple.SimpleFeature
@@ -42,7 +43,10 @@ class ParquetFileSystemRDD extends SpatialRDDProvider with LazyLogging {
     val ds = fac.createDataStore(params)
     val origSft = ds.getSchema(query.getTypeName)
     import org.locationtech.geomesa.index.conf.QueryHints._
+
+    QueryPlanner.setQueryTransforms(query, origSft)
     val sft = query.getHints.getTransformSchema.getOrElse(origSft)
+
     val fc = new FilterConverter(origSft).convert(query.getFilter)._1
 
     val storage = ServiceLoader.load(classOf[FileSystemStorageFactory]).iterator().filter(_.canProcess(params)).map(_.build(params)).next()
