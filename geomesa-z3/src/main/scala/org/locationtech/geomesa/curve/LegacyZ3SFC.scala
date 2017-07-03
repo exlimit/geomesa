@@ -12,12 +12,10 @@ import org.locationtech.geomesa.curve.NormalizedDimension.{SemiNormalizedLat, Se
 import org.locationtech.geomesa.curve.TimePeriod.TimePeriod
 
 @deprecated("Z3SFC", "1.3.2")
-class LegacyZ3SFC(period: TimePeriod,
-                  precision: Long = math.pow(2, 21).toLong - 1,
-                  timePrecision: Long = math.pow(2, 20).toLong - 1) extends Z3SFC(period, precision, timePrecision) {
-  override val lon  = SemiNormalizedLon(precision)
-  override val lat  = SemiNormalizedLat(precision)
-  override val time = SemiNormalizedTime(timePrecision, BinnedTime.maxOffset(period).toDouble)
+class LegacyZ3SFC(period: TimePeriod) extends Z3SFC(period, 1) {
+  override val lon  = SemiNormalizedLon(math.pow(2, 21).toLong - 1)
+  override val lat  = SemiNormalizedLat(math.pow(2, 21).toLong - 1)
+  override val time = SemiNormalizedTime(math.pow(2, 20).toLong - 1, BinnedTime.maxOffset(period).toDouble)
 }
 
 @deprecated("Z3SFC", "1.3.2")

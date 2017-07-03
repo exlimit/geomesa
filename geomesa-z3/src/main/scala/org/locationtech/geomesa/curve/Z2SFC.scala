@@ -12,9 +12,14 @@ import org.locationtech.geomesa.curve.NormalizedDimension.{NormalizedLat, Normal
 import org.locationtech.sfcurve.IndexRange
 import org.locationtech.sfcurve.zorder.{Z2, ZRange}
 
-object Z2SFC extends Z2SFC(math.pow(2, 31).toLong - 1)
+object Z2SFC extends Z2SFC(31)
 
-class Z2SFC(precision: Long) extends SpaceFillingCurve[Z2] {
+/**
+  * z2 space-filling curve
+  *
+  * @param precision number of bits used per dimension - note sum must be less than 64
+  */
+class Z2SFC(precision: Int) extends SpaceFillingCurve[Z2] {
 
   override val lon: NormalizedDimension = NormalizedLon(precision)
   override val lat: NormalizedDimension = NormalizedLat(precision)

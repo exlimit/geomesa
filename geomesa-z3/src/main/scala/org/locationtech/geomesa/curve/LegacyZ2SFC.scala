@@ -11,7 +11,7 @@ package org.locationtech.geomesa.curve
 import org.locationtech.geomesa.curve.NormalizedDimension.{SemiNormalizedLat, SemiNormalizedLon}
 
 @deprecated("Z2SFC", "1.3.2")
-object LegacyZ2SFC extends Z2SFC(math.pow(2, 31).toLong - 1) {
+object LegacyZ2SFC extends Z2SFC(1) {
   override val lon = SemiNormalizedLon(math.pow(2, 31).toLong - 1)
   override val lat = SemiNormalizedLat(math.pow(2, 31).toLong - 1)
 }
