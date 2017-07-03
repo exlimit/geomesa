@@ -24,7 +24,6 @@ import org.apache.hadoop.mapreduce.security.TokenCache
 import org.apache.hadoop.tools.{DistCp, DistCpOptions}
 import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.geotools.data.DataUtilities
 import org.geotools.factory.Hints
 import org.locationtech.geomesa.features.SerializationOption.SerializationOptions
 import org.locationtech.geomesa.features.kryo.KryoFeatureSerializer
@@ -201,9 +200,7 @@ class IngestMapper extends Mapper[LongWritable, SimpleFeature, Text, BytesWritab
   }
 
   override def map(key: LongWritable, sf: SimpleFeature, context: Context): Unit = {
-    logger.debug(s"map key ${key.toString}, map value ${DataUtilities.encodeFeature(sf)}")
     sf.getUserData.put(Hints.USE_PROVIDED_FID, java.lang.Boolean.TRUE)
-
     context.getCounter("geomesa", "map").increment(1)
     // partitionKey is important because this needs to be correct for the parquet file
     val partitionKey = new Text(partitionScheme.getPartitionName(sf))

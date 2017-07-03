@@ -60,6 +60,17 @@ class ParquetFileSystemStorage(root: Path,
   private val metaLoader = new CacheLoader[String, Metadata] {
     override def load(k: String): Metadata = {
       val path = new Path(new Path(root, k), metaFile)
+
+      if (!fs.exists(path)) {
+        val f = fs.create(path)
+        val parts = buildPartitionList(new Path(root, k), "", 0, getPartitionScheme(k).maxDepth()).foreach { p =>
+          f.writeBytes(p)
+          f.write('\n')
+        }
+        f.flush()
+        f.hsync()
+        f.close()
+      }
       new Metadata(path, conf)
     }
   }
