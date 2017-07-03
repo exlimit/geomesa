@@ -8,6 +8,8 @@
 
 package org.locationtech.geomesa.parquet
 
+import java.io.IOException
+
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
@@ -30,7 +32,9 @@ class Metadata(path: Path, conf: Configuration) extends LazyLogging {
       } finally {
         in.close()
       }
-    } else List.empty[String]
+    } else {
+      throw new IOException(s"Unable to locate metadata file ${path.toString}")
+    }
   }
 
   def add(toAdd: Seq[String]): Unit = {

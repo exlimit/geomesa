@@ -67,5 +67,11 @@ class FilterConverterTest extends Specification with AllExpectations {
           org.opengis.filter.Filter.INCLUDE))
       res._2 mustEqual expectedAug
     }
+
+    "query with an int" >> {
+      val f = ff.equals(ff.property("age"), ff.literal(20))
+      val res = conv.convert(f)
+      success
+    }
   }
 }

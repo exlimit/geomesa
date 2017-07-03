@@ -40,6 +40,14 @@
             <artifactId>scala-library</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-reflect</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.parboiled</groupId>
+            <artifactId>parboiled-scala_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.locationtech.geomesa</groupId>
             <artifactId>geomesa-feature-common_${scala.binary.version}</artifactId>
         </dependency>

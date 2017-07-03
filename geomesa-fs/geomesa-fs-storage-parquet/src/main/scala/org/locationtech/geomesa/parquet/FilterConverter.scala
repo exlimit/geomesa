@@ -13,6 +13,7 @@ import org.apache.parquet.filter2.predicate.{FilterApi, FilterPredicate}
 import org.apache.parquet.io.api.Binary
 import org.geotools.factory.CommonFactoryFinder
 import org.locationtech.geomesa.features.serialization.ObjectType
+import org.locationtech.geomesa.features.serialization.ObjectType.ObjectType
 import org.locationtech.geomesa.filter.FilterHelper
 import org.locationtech.geomesa.filter.FilterHelper.extractGeometries
 import org.locationtech.geomesa.utils.geotools.GeometryUtils
@@ -129,30 +130,89 @@ class FilterConverter(sft: SimpleFeatureType) {
       case binop: org.opengis.filter.BinaryComparisonOperator =>
         val name = binop.getExpression1.asInstanceOf[PropertyName].getPropertyName
         val value = binop.getExpression2.toString
+
         binop match {
           case _ if name == dtgAttrOpt.getOrElse("dtg") |
             sft.getDescriptor(name).getType.getBinding != classOf[String] =>
             None
-          case eq: org.opengis.filter.PropertyIsEqualTo =>
-            Option(FilterApi.eq(column(name), convert(name, value)))
-          case neq: org.opengis.filter.PropertyIsNotEqualTo =>
-            Option(FilterApi.notEq(column(name), convert(name, value)))
-          case lt: org.opengis.filter.PropertyIsLessThan =>
-            Option(FilterApi.lt(column(name), convert(name, value)))
-          case lte: org.opengis.filter.PropertyIsLessThanOrEqualTo =>
-            Option(FilterApi.ltEq(column(name), convert(name, value)))
-          case gt: org.opengis.filter.PropertyIsGreaterThan =>
-            Option(FilterApi.gt(column(name), convert(name, value)))
-          case gte: org.opengis.filter.PropertyIsGreaterThanOrEqualTo =>
-            Option(FilterApi.gtEq(column(name), convert(name, value)))
-          case _ =>
-            None
 
+          case _ =>
+            val ad = sft.getDescriptor(name)
+            val binding = ad.getType.getBinding
+            val (objectType: ObjectType, _) = ObjectType.selectType(binding, ad.getUserData)
+            filter(objectType, binop, name, value)
         }
 
       case _ =>
         None
       // TODO geotools based UDFs?
+    }
+  }
+
+  // TODO I hate types
+  def filter(objectType: ObjectType, binop: org.opengis.filter.BinaryComparisonOperator, name: String, value: AnyRef): Option[FilterPredicate] = {
+    objectType match {
+
+      case ObjectType.STRING =>
+        val col = FilterApi.binaryColumn(name)
+        val conv = Binary.fromString(value.toString)
+        binop match {
+          case eq: org.opengis.filter.PropertyIsEqualTo =>
+            Option(FilterApi.eq(col, conv))
+          case neq: org.opengis.filter.PropertyIsNotEqualTo =>
+            Option(FilterApi.notEq(col, conv))
+          case lt: org.opengis.filter.PropertyIsLessThan =>
+            Option(FilterApi.lt(col, conv))
+          case lte: org.opengis.filter.PropertyIsLessThanOrEqualTo =>
+            Option(FilterApi.ltEq(col, conv))
+          case gt: org.opengis.filter.PropertyIsGreaterThan =>
+            Option(FilterApi.gt(col, conv))
+          case gte: org.opengis.filter.PropertyIsGreaterThanOrEqualTo =>
+            Option(FilterApi.gtEq(col, conv))
+          case _ =>
+            None
+        }
+
+      case ObjectType.INT =>
+        val col = FilterApi.intColumn(name)
+        val conv = new java.lang.Integer(value.toString)
+        binop match {
+          case eq: org.opengis.filter.PropertyIsEqualTo =>
+            Option(FilterApi.eq(col, conv))
+          case neq: org.opengis.filter.PropertyIsNotEqualTo =>
+            Option(FilterApi.notEq(col, conv))
+          case lt: org.opengis.filter.PropertyIsLessThan =>
+            Option(FilterApi.lt(col, conv))
+          case lte: org.opengis.filter.PropertyIsLessThanOrEqualTo =>
+            Option(FilterApi.ltEq(col, conv))
+          case gt: org.opengis.filter.PropertyIsGreaterThan =>
+            Option(FilterApi.gt(col, conv))
+          case gte: org.opengis.filter.PropertyIsGreaterThanOrEqualTo =>
+            Option(FilterApi.gtEq(col, conv))
+          case _ =>
+            None
+        }
+
+      case ObjectType.DOUBLE =>
+        val col = FilterApi.doubleColumn(name)
+        val conv = new java.lang.Double(value.toString)
+        binop match {
+          case eq: org.opengis.filter.PropertyIsEqualTo =>
+            Option(FilterApi.eq(col, conv))
+          case neq: org.opengis.filter.PropertyIsNotEqualTo =>
+            Option(FilterApi.notEq(col, conv))
+          case lt: org.opengis.filter.PropertyIsLessThan =>
+            Option(FilterApi.lt(col, conv))
+          case lte: org.opengis.filter.PropertyIsLessThanOrEqualTo =>
+            Option(FilterApi.ltEq(col, conv))
+          case gt: org.opengis.filter.PropertyIsGreaterThan =>
+            Option(FilterApi.gt(col, conv))
+          case gte: org.opengis.filter.PropertyIsGreaterThanOrEqualTo =>
+            Option(FilterApi.gtEq(col, conv))
+          case _ =>
+            None
+        }
+
     }
   }
 
