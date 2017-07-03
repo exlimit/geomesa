@@ -64,8 +64,8 @@ class PartitionSchemeTest extends Specification with AllExpectations {
           gf.createPoint(new Coordinate(-75, 38))), sft, new FeatureIdImpl("1"))
 
       val ps = new DateTimeZ2Scheme("yyyy/DDD", ChronoUnit.DAYS, 1, 10, sft, "dtg", "geom")
-      ps.getPartitionName(sf) mustEqual "2017/003/0049"
-      ps.getPartitionName(sf2) mustEqual "2017/003/0012"
+      ps.getPartitionName(sf) mustEqual "2017/003/0770"
+      ps.getPartitionName(sf2) mustEqual "2017/003/0617"
 
     }
 
@@ -79,8 +79,8 @@ class PartitionSchemeTest extends Specification with AllExpectations {
           gf.createPoint(new Coordinate(-75, 38))), sft, new FeatureIdImpl("1"))
 
       val ps = new DateTimeZ2Scheme("yyyy/DDD", ChronoUnit.DAYS, 1, 20, sft, "dtg", "geom")
-      ps.getPartitionName(sf) mustEqual "2017/003/0000196"
-      ps.getPartitionName(sf2) mustEqual "2017/003/0000051"
+      ps.getPartitionName(sf) mustEqual "2017/003/0789456"
+      ps.getPartitionName(sf2) mustEqual "2017/003/0632516"
     }
 
     "return correct date partitions" >> {

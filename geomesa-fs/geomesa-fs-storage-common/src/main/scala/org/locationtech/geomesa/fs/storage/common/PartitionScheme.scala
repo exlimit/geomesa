@@ -18,11 +18,11 @@ import java.util.Date
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import com.vividsolutions.jts.geom.{Geometry, Point}
 import org.geotools.data.DataAccessFactory.Param
+import org.locationtech.geomesa.curve.Z2SFC
 import org.locationtech.geomesa.filter.FilterHelper.extractGeometries
 import org.locationtech.geomesa.filter.{FilterHelper, FilterValues}
 import org.locationtech.geomesa.fs.storage.api.PartitionScheme
 import org.locationtech.geomesa.utils.geotools.{GeometryUtils, WholeWorldPolygon}
-import org.locationtech.sfcurve.zorder.ZCurve2D
 import org.opengis.feature.simple.{SimpleFeature, SimpleFeatureType}
 import org.opengis.filter.Filter
 
@@ -170,6 +170,7 @@ class DateTimeScheme(fmtStr: String,
 
   override def toString: String = {
     import PartitionOpts._
+
     import scala.collection.JavaConverters._
     val conf = ConfigFactory.parseMap(Map(
       "name" -> "datetime",
@@ -185,25 +186,21 @@ class DateTimeScheme(fmtStr: String,
     PartitionScheme(sft, ConfigFactory.parseString(s))
 }
 
-class Z2Scheme(resolution: Int,
+class Z2Scheme(bits: Int, // number of bits
                sft: SimpleFeatureType,
                geomAttribute: String) extends PartitionScheme {
 
-  class FixedZ2(resolution: Int) extends ZCurve2D(resolution) {
-    override  def mapToCol(x: Double) =
-      math.min(((x - xmin) / cellwidth).toInt, resolution - 1)
+  require(bits % 2 == 0, "Resolution must be an even number")
 
-    override def mapToRow(y: Double) =
-      math.min(((ymax - y) / cellheight).toInt, resolution - 1)
-  }
-
+  // note: z2sfc resolution is per dimension
+  private val resolution = math.pow(2, bits / 2).toInt
+  private val z2 = new Z2SFC(resolution)
+  private val digits = math.ceil(math.log10(math.pow(resolution, 2))).toInt
   private val geomAttrIndex = sft.indexOf(geomAttribute)
-  private val z2 = new FixedZ2(resolution)
-  private val digits = math.ceil(math.log10(math.pow(2, resolution))).toInt
 
   override def getPartitionName(sf: SimpleFeature): String = {
     val pt = sf.getAttribute(geomAttrIndex).asInstanceOf[Point]
-    val idx = z2.toIndex(pt.getX, pt.getY)
+    val idx = z2.index(pt.getX, pt.getY).z
     idx.formatted(s"%0${digits}d")
   }
 
@@ -219,18 +216,17 @@ class Z2Scheme(resolution: Int,
       return List.empty[String]
     }
 
-    val xy = geometries.values.map(GeometryUtils.bounds).head
-    val ranges = z2.toRanges(xy._1, xy._2, xy._3, xy._4)
-    ranges
-      .flatMap { ir =>
-        ir.lower to ir.upper
-      }.map(_.formatted(s"%0${digits}d"))
+    val xy = geometries.values.map(GeometryUtils.bounds)
+    val ranges = z2.ranges(xy)
+    val enumerations = ranges.flatMap(ir => ir.lower to ir.upper)
+    enumerations.map(_.formatted(s"%0${digits}d"))
   }
 
   override def maxDepth(): Int = 1
 
   override def toString: String = {
     import PartitionOpts._
+
     import scala.collection.JavaConverters._
     val conf = ConfigFactory.parseMap(Map(
       "name" -> "z2",
