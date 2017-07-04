@@ -48,9 +48,11 @@ class FilterConverter(sft: SimpleFeatureType) {
     }
   }
 
-  // TODO do this in the single walk
+
   private val ff = CommonFactoryFinder.getFilterFactory2
 
+  // TODO do this in the single walk
+  // TODO optimize by removing superfluous Filter.INCLUDE trees (collapse and/ors of Filter.INCLUDE)
   def residualFilter(f: org.opengis.filter.Filter): org.opengis.filter.Filter = {
     f match {
       case and: org.opengis.filter.And =>

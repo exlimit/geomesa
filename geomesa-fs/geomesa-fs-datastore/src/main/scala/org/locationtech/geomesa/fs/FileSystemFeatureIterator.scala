@@ -9,7 +9,8 @@
 
 package org.locationtech.geomesa.fs
 
-import java.util.concurrent.{CountDownLatch, Executors, LinkedBlockingQueue, TimeUnit}
+import java.util
+import java.util.concurrent._
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.hadoop.fs.FileSystem
@@ -62,29 +63,37 @@ class ThreadedReader(storage: FileSystemStorage,
   private val es = Executors.newFixedThreadPool(numThreads)
   private val latch = new CountDownLatch(partitions.size)
 
-  private val queue = new LinkedBlockingQueue[SimpleFeature](100000)
+//  private val queue = new LinkedBlockingQueue[SimpleFeature](200000)
+  private val queue = new LinkedBlockingQueue[SimpleFeature](2000000)
+
+  private val localQueue = new util.LinkedList[SimpleFeature]()
+  private var numQueued = 0
 
   private var started: Boolean = false
   private def start(): Unit = {
     partitions.foreach { p =>
       es.submit(new Runnable with LazyLogging {
         override def run(): Unit = {
-          var count = 0
-          val reader = storage.getPartitionReader(q, p)
-          try {
-            while (reader.hasNext) {
-              count += 1
-              val next = reader.next()
-              while (!queue.offer(next, 3, TimeUnit.MILLISECONDS)) {}
+          try { // For the latch must be careful with the threads and wrap this separately
+            var count = 0
+            val reader = storage.getPartitionReader(q, p)
+            try {
+              logger.info(s"Reading partition of ${reader.getPartition}")
+              while (reader.hasNext) {
+                count += 1
+                val next = reader.next()
+//                queue.add(next)
+                queue.add(next)
+//                while (!queue.offer(next, 3, TimeUnit.MILLISECONDS)) {}
+              }
+            } catch {
+              case e: Throwable => logger.error(s"Error reading partition ${reader.getPartition}", e)
+            } finally {
+              try { reader.close() } catch { case e: Throwable => logger.error("error closing reader", e) }
+              logger.info(s"Partition ${reader.getPartition} produced $count records")
             }
-          } catch {
-            case e: Throwable =>
-              e.printStackTrace()
-              logger.error(s"Error in reader for partition ${reader.getPartition}: ${e.getMessage}", e)
           } finally {
             latch.countDown()
-            try { reader.close() } catch { case e: Exception => }
-            logger.info(s"Partition ${reader.getPartition} produced $count records")
           }
         }
       })
@@ -97,9 +106,26 @@ class ThreadedReader(storage: FileSystemStorage,
   private var cur: SimpleFeature = _
 
   private def queueNext(): Unit = {
-    while (cur == null && (queue.size() > 0 || latch.getCount > 0)) {
-      cur = queue.poll(5, TimeUnit.MILLISECONDS)
+    if (!started) start()
+
+    if (numQueued > 0) {
+      cur = localQueue.pop()
+      numQueued -= 1
+    } else {
+      while (numQueued == 0 && cur == null && (queue.size() > 0 || latch.getCount > 0)) {
+//        val tmp = queue.poll(5, TimeUnit.MILLISECONDS)
+        val tmp = queue.poll()
+        if (tmp != null) {
+          localQueue.add(tmp)
+          numQueued += 1
+          numQueued += queue.drainTo(localQueue, 10000)
+//          logger.info(s"num queued: $numQueued")
+          cur = localQueue.pop()
+          numQueued -= 1
+        }
+      }
     }
+
     nextQueued = true
   }
 
@@ -115,7 +141,6 @@ class ThreadedReader(storage: FileSystemStorage,
   }
 
   override def hasNext: Boolean = {
-    if (!started) start()
     if (!nextQueued) { queueNext() }
     cur != null
   }

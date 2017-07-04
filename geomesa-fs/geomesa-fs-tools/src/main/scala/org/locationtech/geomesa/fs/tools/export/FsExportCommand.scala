@@ -14,12 +14,12 @@ import com.beust.jcommander.{Parameter, ParameterException, Parameters}
 import com.typesafe.scalalogging.LazyLogging
 import org.geotools.data.Query
 import org.geotools.filter.text.ecql.ECQL
-import org.locationtech.geomesa.fs.{FileSystemDataStore, FileSystemDataStoreParams}
 import org.locationtech.geomesa.fs.tools.{FsDataStoreCommand, FsParams}
-import org.locationtech.geomesa.tools.{Command, RequiredTypeNameParam}
+import org.locationtech.geomesa.fs.{FileSystemDataStore, FileSystemDataStoreParams}
 import org.locationtech.geomesa.tools.export.formats._
-import org.locationtech.geomesa.tools.export.{DataExportParams, ExportCommand, ExportParams}
+import org.locationtech.geomesa.tools.export.{DataExportParams, ExportCommand}
 import org.locationtech.geomesa.tools.utils.DataFormats
+import org.locationtech.geomesa.tools.{Command, RequiredTypeNameParam}
 import org.locationtech.geomesa.utils.io.CloseQuietly
 import org.locationtech.geomesa.utils.stats.{MethodProfiling, Timing}
 import org.opengis.filter.Filter
@@ -103,7 +103,7 @@ class FsExportCommand extends FsDataStoreCommand with MethodProfiling with LazyL
 
 trait OptionalQueryThreads {
   @Parameter(names = Array("--query-threads"), description = "threads (start with 1)", required = false)
-  var threads: java.lang.Integer = _
+  var threads: java.lang.Integer = 1
 }
 
 @Parameters(commandDescription = "Export features from a GeoMesa data store")

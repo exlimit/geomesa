@@ -24,6 +24,7 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.geotools.data.Query
 import org.locationtech.geomesa.fs.storage.api._
 import org.locationtech.geomesa.fs.storage.common.{FileMetadata, LeafStoragePartition, Metadata, StorageUtils}
+import org.locationtech.geomesa.index.planning.QueryPlanner
 import org.locationtech.geomesa.utils.geotools.SimpleFeatureTypes
 import org.locationtech.geomesa.utils.io.CloseQuietly
 import org.opengis.feature.simple.{SimpleFeature, SimpleFeatureType}
@@ -62,15 +63,15 @@ class ParquetFileSystemStorage(root: Path,
     ParquetFileSystemStorage.MetadataCache.get((root, typeName), new Callable[Metadata] {
       override def call(): Metadata = {
         val metaPath = new Path(new Path(root, typeName), metaFileName)
+        val meta = new FileMetadata(fs, metaPath, conf)
         if (!fs.exists(metaPath)) {
           fs.create(metaPath)
+          val partitions =
+            StorageUtils.buildPartitionList(root, fs, typeName, getPartitionScheme(typeName), dataFileExtention)
+              .map(getPartition)
+              .map(_.getName)
+          meta.addPartitions(partitions)
         }
-        val meta = new FileMetadata(fs, metaPath, conf)
-        val partitions =
-          StorageUtils.buildPartitionList(root, fs, typeName, getPartitionScheme(typeName), dataFileExtention)
-            .map(getPartition)
-            .map(_.getName)
-        meta.addPartitions(partitions)
         meta
       }
     })
@@ -144,6 +145,8 @@ class ParquetFileSystemStorage(root: Path,
     }
     else {
       import org.locationtech.geomesa.index.conf.QueryHints._
+      QueryPlanner.setQueryTransforms(q, sft)
+
       val transformSft = q.getHints.getTransformSchema.getOrElse(sft)
 
       val support = new SimpleFeatureReadSupport
@@ -161,6 +164,7 @@ class ParquetFileSystemStorage(root: Path,
       logger.info(s"Parquet filter: $parquetFilter and modified gt filter ${fc._2}")
 
       logger.info(s"Opening reader for partition $partition")
+      conf.set("parquet.filter.dictionary.enabled", "true")
       val reader = ParquetReader.builder[SimpleFeature](support, path)
         .withFilter(parquetFilter)
         .withConf(conf)
