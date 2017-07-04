@@ -8,7 +8,8 @@
 
 package org.locationtech.geomesa.parquet
 
-import org.apache.parquet.filter2.predicate.Operators.BinaryColumn
+import java.lang.{Boolean, Float, Long}
+
 import org.apache.parquet.filter2.predicate.{FilterApi, FilterPredicate}
 import org.apache.parquet.io.api.Binary
 import org.geotools.factory.CommonFactoryFinder
@@ -34,14 +35,14 @@ class FilterConverter(sft: SimpleFeatureType) {
     * to apply to parquet files for filtering
     *
     * @param f
-    * @return a tuple representing the parquet filter and a modified geotools filter
+    * @return a tuple representing the parquet filter and a residual geotools filter
     *         to apply for fine grained filtering since some of the predicates may
     *         be fully covered by the parquet filter
     */
   def convert(f: org.opengis.filter.Filter): (Option[FilterPredicate], org.opengis.filter.Filter) = {
     val filters = Seq(geoFilter(f), dtgFilter(f), attrFilter(f)).flatten
     if (filters.nonEmpty) {
-      (Some(filters.reduceLeft(FilterApi.and)), augment(f))
+      (Some(filters.reduceLeft(FilterApi.and)), residualFilter(f))
     } else {
       (None, f)
     }
@@ -49,19 +50,21 @@ class FilterConverter(sft: SimpleFeatureType) {
 
   // TODO do this in the single walk
   private val ff = CommonFactoryFinder.getFilterFactory2
-  def augment(f: org.opengis.filter.Filter): org.opengis.filter.Filter = {
+
+  def residualFilter(f: org.opengis.filter.Filter): org.opengis.filter.Filter = {
     f match {
       case and: org.opengis.filter.And =>
-        ff.and(and.getChildren.map(augment))
+        ff.and(and.getChildren.map(residualFilter))
 
       case or: org.opengis.filter.Or =>
-        ff.or(or.getChildren.map(augment))
+        ff.or(or.getChildren.map(residualFilter))
 
       case binop: org.opengis.filter.BinaryComparisonOperator =>
-        // These are all handled by the parquet attribute filters (I hope)
+        // These are all handled by the parquet attribute or date filter
         binop match {
-          case _ if binop.getExpression1.asInstanceOf[PropertyName].getPropertyName == dtgAttrOpt.getOrElse("dtg") =>
-            f
+          case _ if dtgAttrOpt.contains(binop.getExpression1.asInstanceOf[PropertyName].getPropertyName) =>
+            org.opengis.filter.Filter.INCLUDE
+
           case _ @(_: org.opengis.filter.PropertyIsEqualTo |
                    _: org.opengis.filter.PropertyIsNotEqualTo |
                    _: org.opengis.filter.PropertyIsLessThan |
@@ -126,14 +129,12 @@ class FilterConverter(sft: SimpleFeatureType) {
         val res = or.getChildren.flatMap(attrFilter)
         if (res.nonEmpty) Option(res.reduceLeft(FilterApi.or)) else None
 
-        // TODO support more than String queries
       case binop: org.opengis.filter.BinaryComparisonOperator =>
         val name = binop.getExpression1.asInstanceOf[PropertyName].getPropertyName
         val value = binop.getExpression2.toString
 
         binop match {
-          case _ if name == dtgAttrOpt.getOrElse("dtg") |
-            sft.getDescriptor(name).getType.getBinding != classOf[String] =>
+          case _ if name == geomAttr | dtgAttrOpt.contains(name) =>
             None
 
           case _ =>
@@ -150,7 +151,9 @@ class FilterConverter(sft: SimpleFeatureType) {
   }
 
   // TODO I hate types
-  def filter(objectType: ObjectType, binop: org.opengis.filter.BinaryComparisonOperator, name: String, value: AnyRef): Option[FilterPredicate] = {
+  def filter(objectType: ObjectType,
+             binop: org.opengis.filter.BinaryComparisonOperator,
+             name: String, value: AnyRef): Option[FilterPredicate] =
     objectType match {
 
       case ObjectType.STRING =>
@@ -213,31 +216,59 @@ class FilterConverter(sft: SimpleFeatureType) {
             None
         }
 
+      case ObjectType.LONG =>
+        val col = FilterApi.longColumn(name)
+        val conv = new Long(value.toString)
+        binop match {
+          case eq: org.opengis.filter.PropertyIsEqualTo =>
+            Option(FilterApi.eq(col, conv))
+          case neq: org.opengis.filter.PropertyIsNotEqualTo =>
+            Option(FilterApi.notEq(col, conv))
+          case lt: org.opengis.filter.PropertyIsLessThan =>
+            Option(FilterApi.lt(col, conv))
+          case lte: org.opengis.filter.PropertyIsLessThanOrEqualTo =>
+            Option(FilterApi.ltEq(col, conv))
+          case gt: org.opengis.filter.PropertyIsGreaterThan =>
+            Option(FilterApi.gt(col, conv))
+          case gte: org.opengis.filter.PropertyIsGreaterThanOrEqualTo =>
+            Option(FilterApi.gtEq(col, conv))
+          case _ =>
+            None
+        }
+
+
+      case ObjectType.FLOAT =>
+        val col = FilterApi.floatColumn(name)
+        val conv = new Float(value.toString)
+        binop match {
+          case eq: org.opengis.filter.PropertyIsEqualTo =>
+            Option(FilterApi.eq(col, conv))
+          case neq: org.opengis.filter.PropertyIsNotEqualTo =>
+            Option(FilterApi.notEq(col, conv))
+          case lt: org.opengis.filter.PropertyIsLessThan =>
+            Option(FilterApi.lt(col, conv))
+          case lte: org.opengis.filter.PropertyIsLessThanOrEqualTo =>
+            Option(FilterApi.ltEq(col, conv))
+          case gt: org.opengis.filter.PropertyIsGreaterThan =>
+            Option(FilterApi.gt(col, conv))
+          case gte: org.opengis.filter.PropertyIsGreaterThanOrEqualTo =>
+            Option(FilterApi.gtEq(col, conv))
+          case _ =>
+            None
+        }
+
+      case ObjectType.BOOLEAN =>
+        val col = FilterApi.booleanColumn(name)
+        val conv = new Boolean(value.toString)
+        binop match {
+          case eq: org.opengis.filter.PropertyIsEqualTo =>
+            Option(FilterApi.eq(col, conv))
+          case neq: org.opengis.filter.PropertyIsNotEqualTo =>
+            Option(FilterApi.notEq(col, conv))
+          case _ =>
+            None
+        }
+
     }
-  }
 
-  // Todo support other things than Binary
-  def column(name: String): BinaryColumn = {
-    val ad = sft.getDescriptor(name)
-    val binding = ad.getType.getBinding
-    val (objectType, _) = ObjectType.selectType(binding, ad.getUserData)
-
-    objectType match {
-      case ObjectType.STRING =>
-        FilterApi.binaryColumn(name)
-    }
-  }
-
-  // Todo support other things than Binary
-  protected def convert(name: String, value: AnyRef): Binary = {
-    val ad = sft.getDescriptor(name)
-    val binding = ad.getType.getBinding
-    val (objectType, _) = ObjectType.selectType(binding, ad.getUserData)
-
-    objectType match {
-
-      case ObjectType.STRING => Binary.fromString(value.toString)
-
-    }
-  }
 }

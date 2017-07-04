@@ -8,7 +8,8 @@
 
 package org.locationtech.geomesa.parquet
 
-import java.util.Date
+import java.nio.ByteBuffer
+import java.util.{Date, UUID}
 
 import com.vividsolutions.jts.geom.Coordinate
 import org.apache.parquet.io.api.{Binary, Converter, GroupConverter, PrimitiveConverter}
@@ -28,7 +29,6 @@ class SimpleFeatureGroupConverter(sft: SimpleFeatureType) extends GroupConverter
     }
   }
   private val converters = SimpleFeatureParquetConverters.converters(sft, this) :+ idConverter
-//  private val numAttributes = sft.getAttributeCount
 
   var current: ScalaSimpleFeature = _
 
@@ -174,8 +174,13 @@ object SimpleFeatureParquetConverters {
         null
 
       case ObjectType.UUID =>
-        // TODO: binary storage :)
-        null
+        new SimpleFeatureFieldConverter(parent) {
+          override def addBinary(value: Binary): Unit = {
+            val bb = ByteBuffer.wrap(value.getBytes)
+            val uuid = new UUID(bb.getLong, bb.getLong)
+            parent.current.setAttributeNoConvert(index, uuid)
+          }
+        }
     }
 
   }

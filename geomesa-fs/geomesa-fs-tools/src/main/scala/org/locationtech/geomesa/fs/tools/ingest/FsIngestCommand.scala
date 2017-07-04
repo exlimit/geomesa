@@ -90,6 +90,6 @@ class FsIngestParams extends IngestParams with FsParams {
   @Parameter(names = Array("--num-reducers"), description = "Num reducers", required = true)
   var reducers: java.lang.Integer = _
 
-  @Parameter(names = Array("--partition-scheme"), description = "PartitionScheme typesafe config or file", required = true)
+  @Parameter(names = Array("--partition-scheme"), description = "PartitionScheme typesafe config string or file", required = true)
   var scheme: java.lang.String = _
 }

@@ -48,6 +48,7 @@ trait PathParam {
   var path: String = _
 }
 
+// TODO future work would be nice to store this in metadata
 trait EncodingParam {
   @Parameter(names = Array("--encoding", "-e"), description = "Encoding (parquet, csv, etc)", required = true)
   var encoding: String = _

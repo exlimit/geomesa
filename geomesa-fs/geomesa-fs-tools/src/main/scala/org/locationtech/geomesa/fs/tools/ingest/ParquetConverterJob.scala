@@ -173,11 +173,11 @@ object ParquetConverterJob {
   def setSimpleFeatureType(conf: Configuration, sft: SimpleFeatureType): Unit = {
     // Validate that there is a partition scheme
     org.locationtech.geomesa.fs.storage.common.PartitionScheme.extractFromSft(sft)
-    SimpleFeatureReadSupport.updateConf(sft, conf)
+    SimpleFeatureReadSupport.setSft(sft, conf)
   }
 
   def getSimpleFeatureType(conf: Configuration): SimpleFeatureType = {
-    SimpleFeatureReadSupport.sftFromConf(conf)
+    SimpleFeatureReadSupport.getSft(conf)
   }
 }
 

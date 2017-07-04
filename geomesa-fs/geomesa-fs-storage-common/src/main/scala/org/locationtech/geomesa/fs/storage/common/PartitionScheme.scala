@@ -190,6 +190,15 @@ class DateTimeScheme(fmtStr: String,
     PartitionScheme(sft, ConfigFactory.parseString(s))
 }
 
+object DateTimeScheme {
+  object Formats {
+    val YearJDay = "yyyy/DDD"
+    val YearJDayHour = "yyyy/DDD/HH"
+    val YearMonthDay = "yyyy/MM/dd"
+    val YearMonthDayHour = "yyyy/MM/dd/HH"
+  }
+}
+
 class Z2Scheme(bits: Int, // number of bits
                sft: SimpleFeatureType,
                geomAttribute: String) extends PartitionScheme {

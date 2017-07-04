@@ -24,17 +24,11 @@ class FileSystemFeatureIterator(fs: FileSystem,
                                 readThreads: Int,
                                 storage: FileSystemStorage) extends java.util.Iterator[SimpleFeature] with AutoCloseable {
 
-  private val partitions = PartitionUtils.getPartitionsForQuery(storage, sft, q)
+  private val partitions = FsQueryPlanning.getPartitionsForQuery(storage, sft, q)
 
   private val iter: java.util.Iterator[SimpleFeature] with AutoCloseable =
     if (partitions.isEmpty) {
-      new java.util.Iterator[SimpleFeature] with AutoCloseable {
-        override def next(): SimpleFeature = throw new NoSuchElementException
-
-        override def hasNext: Boolean = false
-
-        override def close(): Unit = {}
-      }
+      CloseableEmptyIterator
     } else {
       new ThreadedReader(storage, partitions, q, readThreads)
     }
@@ -44,7 +38,16 @@ class FileSystemFeatureIterator(fs: FileSystem,
   override def close(): Unit = iter.close()
 }
 
-class ThreadedReader(storage: FileSystemStorage, partitions: Seq[Partition], q: Query, numThreads: Int)
+object CloseableEmptyIterator extends java.util.Iterator[SimpleFeature] with AutoCloseable  {
+  override def next(): SimpleFeature = throw new NoSuchElementException
+  override def hasNext: Boolean = false
+  override def close(): Unit = {}
+}
+
+class ThreadedReader(storage: FileSystemStorage,
+                     partitions: Seq[Partition],
+                     q: Query,
+                     numThreads: Int)
   extends java.util.Iterator[SimpleFeature] with AutoCloseable with LazyLogging {
 
   // Need to do more tuning here. On a local system 1 thread (so basic producer/consumer) was best

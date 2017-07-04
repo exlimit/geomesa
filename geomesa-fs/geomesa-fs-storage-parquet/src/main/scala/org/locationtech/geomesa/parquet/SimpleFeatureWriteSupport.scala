@@ -25,7 +25,7 @@ class SimpleFeatureWriteSupport extends WriteSupport[SimpleFeature] {
   private var idIndex: java.lang.Integer = _// put the ID at the end of the record ? Why?
 
   override def init(configuration: Configuration): WriteContext = {
-    this.sft = SimpleFeatureReadSupport.sftFromConf(configuration)
+    this.sft = SimpleFeatureReadSupport.getSft(configuration)
     this.idIndex = sft.getAttributeCount
     this.writers = SimpleFeatureParquetSchema.buildAttributeWriters(sft)
     this.messageType = SimpleFeatureParquetSchema(sft)

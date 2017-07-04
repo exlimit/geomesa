@@ -81,13 +81,15 @@ class FileSystemDataStoreFactory extends DataStoreFactorySpi {
   override def canProcess(params: util.Map[String, io.Serializable]): Boolean =
     params.containsKey(PathParam.getName) && params.containsKey(EncodingParam.getName)
 
-  override def getParametersInfo: Array[DataAccessFactory.Param] = Array(PathParam, EncodingParam, NamespaceParam)
+  override def getParametersInfo: Array[DataAccessFactory.Param] =
+    Array(PathParam, EncodingParam, NamespaceParam)
 
   override def getDescription: String = "GeoMesa FileSystem Data Store"
 
   override def getDisplayName: String = "GeoMesa-FS"
 
-  override def getImplementationHints: util.Map[RenderingHints.Key, _] = new util.HashMap[RenderingHints.Key, Serializable]()
+  override def getImplementationHints: util.Map[RenderingHints.Key, _] =
+    new util.HashMap[RenderingHints.Key, Serializable]()
 }
 
 object FileSystemDataStoreParams {

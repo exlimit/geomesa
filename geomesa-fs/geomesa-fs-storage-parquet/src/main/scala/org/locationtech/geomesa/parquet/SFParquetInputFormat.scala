@@ -28,11 +28,11 @@ class SFParquetInputFormat extends ParquetInputFormat[SimpleFeature] {
 }
 
 object SFParquetInputFormat {
-  val FilterKey = "geomesa.parquet.filter"
+  val GeoToolsFilterKey = "geomesa.fs.residual.filter"
   import org.opengis.filter.Filter
 
-  def setGeoToolsFilter(conf: Configuration, filter: Filter): Unit =  conf.set(FilterKey, ECQL.toCQL(filter))
-  def getGeoToolsFilter(conf: Configuration): Filter = ECQL.toFilter(conf.get(FilterKey))
+  def setGeoToolsFilter(conf: Configuration, filter: Filter): Unit = conf.set(GeoToolsFilterKey, ECQL.toCQL(filter))
+  def getGeoToolsFilter(conf: Configuration): Filter = ECQL.toFilter(conf.get(GeoToolsFilterKey))
 
 }
 

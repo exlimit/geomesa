@@ -55,8 +55,6 @@ class FileSystemFeatureStore(entry: ContentEntry,
 
       private val sft = _sft
 
-      // TODO: figure out flushCount
-      private val flushCount = 1000
       private val featureIds = new AtomicLong(0)
       private var count = 0L
       private var feature: SimpleFeature = _
@@ -78,9 +76,6 @@ class FileSystemFeatureStore(entry: ContentEntry,
 
         feature = null
         count += 1
-//        if (count % flushCount == 0) {
-//          writer.flush()
-//        }
       }
 
       override def remove(): Unit = throw new NotImplementedError()
@@ -88,7 +83,7 @@ class FileSystemFeatureStore(entry: ContentEntry,
       override def close(): Unit = {
         writers.invalidateAll()
         import scala.collection.JavaConversions._
-        storage.newPartitions(sft.getTypeName, partitionsWritten.toList)
+        storage.notifyPartitions(sft.getTypeName, partitionsWritten.toList)
       }
 
     }

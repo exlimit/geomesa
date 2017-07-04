@@ -36,6 +36,7 @@ object AttributeWriter {
       val classBinding = descriptor.getType.getBinding
     val (objectType, _) = ObjectType.selectType(classBinding, descriptor.getUserData)
     objectType match {
+      // TODO linestrings and polygons
       case ObjectType.GEOMETRY => new PointAttributeWriter(name, index)
       case ObjectType.DATE     => new DateWriter(name, index)
       case ObjectType.DOUBLE   => new DoubleWriter(name, index)
@@ -43,6 +44,12 @@ object AttributeWriter {
       case ObjectType.INT      => new IntegerWriter(name, index)
       case ObjectType.LONG     => new LongWriter(name, index)
       case ObjectType.STRING   => new StringWriter(name, index)
+
+      // TODO implement
+      case ObjectType.LIST     => throw new NotImplementedError()
+      case ObjectType.MAP      => throw new NotImplementedError()
+      case ObjectType.UUID     => throw new NotImplementedError()
+
     }
   }
 

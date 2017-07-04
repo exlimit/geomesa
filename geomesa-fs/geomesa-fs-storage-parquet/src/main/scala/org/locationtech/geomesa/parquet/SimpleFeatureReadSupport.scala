@@ -26,7 +26,7 @@ class SimpleFeatureReadSupport extends ReadSupport[SimpleFeature] {
   private var sft: SimpleFeatureType = _
 
   override def init(context: InitContext): ReadSupport.ReadContext = {
-    this.sft = SimpleFeatureReadSupport.sftFromConf(context.getConfiguration)
+    this.sft = SimpleFeatureReadSupport.getSft(context.getConfiguration)
     new ReadSupport.ReadContext(SimpleFeatureParquetSchema(sft), Maps.newHashMap())
   }
 
@@ -39,13 +39,14 @@ class SimpleFeatureReadSupport extends ReadSupport[SimpleFeature] {
 }
 
 object SimpleFeatureReadSupport {
-  val SftConfKey = "geomesa.sft.conf"
+  val SftConfKey = "geomesa.sft.config"
 
-  def updateConf(sft: SimpleFeatureType, conf: Configuration) = {
+  def setSft(sft: SimpleFeatureType, conf: Configuration) = {
+    // This must be serialized as conf due to the spec's inability to serialize user data completely
     conf.set(SftConfKey, SimpleFeatureTypes.toConfigString(sft, includeUserData = true, concise = true, includePrefix = false))
   }
 
-  def sftFromConf(conf: Configuration): SimpleFeatureType = {
+  def getSft(conf: Configuration): SimpleFeatureType = {
     val confStr = conf.get(SftConfKey)
     val config = ConfigFactory.parseString(confStr)
     SimpleFeatureTypes.createType(config)

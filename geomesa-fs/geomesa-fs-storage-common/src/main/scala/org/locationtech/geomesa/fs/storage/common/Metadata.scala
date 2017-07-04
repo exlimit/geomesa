@@ -13,18 +13,22 @@ import java.io.IOException
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 
-/**
-  * Created by ahulbert on 6/30/17.
-  */
-class Metadata(path: Path,
-               conf: Configuration) extends LazyLogging {
+trait Metadata {
+  def addPartition(partition: String): Unit
+  def addPartitions(partitions: Seq[String]): Unit
+  def getPartitions: Seq[String]
+}
 
-  private val fs = path.getFileSystem(conf)
-  private var cached: List[String] = read()
 
-  private def read(): List[String] = {
+class FileMetadata(fs: FileSystem,
+                   path: Path,
+                   conf: Configuration) extends Metadata with LazyLogging {
+
+  private var cached: List[String] = _
+
+  private def load(): List[String] = {
     if (fs.exists(path)) {
       val in = path.getFileSystem(conf).open(path)
       try {
@@ -38,18 +42,21 @@ class Metadata(path: Path,
     }
   }
 
-  def add(toAdd: Seq[String]): Unit = {
-    val parts = (read() ++ toAdd).distinct
+  override def addPartition(partition: String): Unit =  addPartitions(List(partition))
+
+  override def addPartitions(toAdd: Seq[String]): Unit = {
+    val parts = (load() ++ toAdd).distinct
     val out = path.getFileSystem(conf).create(path, true)
-    parts.foreach{ p => out.writeBytes(p); out.write('\n') }
+    parts.foreach { p => out.writeBytes(p); out.write('\n') }
     out.hflush()
     out.hsync()
     out.close()
-    cached = read()
+    cached = null
     logger.info(s"wrote ${parts.size} partitions to metadata file")
   }
 
-  def getPartitions: Seq[String] = {
+  override def getPartitions: Seq[String] = {
+    if (cached == null) cached = load()
     cached
   }
 

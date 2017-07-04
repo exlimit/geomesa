@@ -10,9 +10,9 @@ package org.locationtech.geomesa.fs.spark
 
 import java.io.Serializable
 import java.util
-import java.util.ServiceLoader
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
@@ -20,12 +20,12 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.parquet.hadoop.ParquetInputFormat
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.geotools.data.Query
-import org.locationtech.geomesa.fs.storage.api.FileSystemStorageFactory
-import org.locationtech.geomesa.fs.{FileSystemDataStoreFactory, PartitionUtils}
+import org.geotools.data.{DataStoreFinder, Query, Transaction}
+import org.locationtech.geomesa.fs.{FileSystemDataStore, FsQueryPlanning}
 import org.locationtech.geomesa.index.planning.QueryPlanner
 import org.locationtech.geomesa.parquet.{FilterConverter, ParquetFileSystemStorageFactory, SFParquetInputFormat, SimpleFeatureReadSupport}
 import org.locationtech.geomesa.spark.{SpatialRDD, SpatialRDDProvider}
+import org.locationtech.geomesa.utils.geotools.FeatureUtils
 import org.opengis.feature.simple.SimpleFeature
 
 class ParquetFileSystemRDD extends SpatialRDDProvider with LazyLogging {
@@ -37,20 +37,18 @@ class ParquetFileSystemRDD extends SpatialRDDProvider with LazyLogging {
                    sc: SparkContext,
                    params: Map[String, String],
                    query: Query): SpatialRDD = {
-    val fac = new FileSystemDataStoreFactory()
 
     import scala.collection.JavaConversions._
-    val ds = fac.createDataStore(params)
+    val ds = DataStoreFinder.getDataStore(params).asInstanceOf[FileSystemDataStore]
     val origSft = ds.getSchema(query.getTypeName)
     import org.locationtech.geomesa.index.conf.QueryHints._
 
     QueryPlanner.setQueryTransforms(query, origSft)
     val sft = query.getHints.getTransformSchema.getOrElse(origSft)
 
-    val fc = new FilterConverter(origSft).convert(query.getFilter)._1
 
-    val storage = ServiceLoader.load(classOf[FileSystemStorageFactory]).iterator().filter(_.canProcess(params)).map(_.build(params)).next()
-    val inputPaths = PartitionUtils.getPartitionsForQuery(storage, origSft, query).flatMap { p =>
+    val storage = ds.storage
+    val inputPaths = FsQueryPlanning.getPartitionsForQuery(storage, origSft, query).flatMap { p =>
       storage.getPaths(sft.getTypeName, p).map(new Path(_))
     }
 
@@ -63,25 +61,50 @@ class ParquetFileSystemRDD extends SpatialRDDProvider with LazyLogging {
     conf.set(FileInputFormat.INPUT_DIR, job.getConfiguration.get(FileInputFormat.INPUT_DIR))
 
     // Note we have to copy all the conf twice?
-    SimpleFeatureReadSupport.updateConf(sft, job.getConfiguration)
-    SimpleFeatureReadSupport.updateConf(sft, conf)
+    SimpleFeatureReadSupport.setSft(sft, job.getConfiguration)
+    SimpleFeatureReadSupport.setSft(sft, conf)
 
-    // Note we have to copy all the conf twice?
-    fc.foreach(ParquetInputFormat.setFilterPredicate(job.getConfiguration, _))
-    fc.foreach(ParquetInputFormat.setFilterPredicate(conf, _))
+    // Pushdown Parquet Predicates
+    val (parquetFilter, modifiedGT) = new FilterConverter(origSft).convert(query.getFilter)
+    parquetFilter.foreach { f =>
+      ParquetInputFormat.setFilterPredicate(job.getConfiguration, f)
+      ParquetInputFormat.setFilterPredicate(conf, f)
+    }
+
+    // Now set the modified geotools filter
+    SFParquetInputFormat.setGeoToolsFilter(job.getConfiguration, modifiedGT)
+    conf.set(SFParquetInputFormat.GeoToolsFilterKey, job.getConfiguration.get(SFParquetInputFormat.GeoToolsFilterKey))
 
     // Note we have to copy all the conf twice?
     ParquetInputFormat.setReadSupportClass(job, classOf[SimpleFeatureReadSupport])
     conf.set(ParquetInputFormat.READ_SUPPORT_CLASS, job.getConfiguration.get(ParquetInputFormat.READ_SUPPORT_CLASS))
 
-    // Note we have to copy all the conf twice?
-    SFParquetInputFormat.setGeoToolsFilter(job.getConfiguration, query.getFilter)
-    conf.set(SFParquetInputFormat.FilterKey, job.getConfiguration.get(SFParquetInputFormat.FilterKey))
-
     val rdd = sc.newAPIHadoopRDD(conf, classOf[SFParquetInputFormat], classOf[Void], classOf[SimpleFeature])
     SpatialRDD(rdd.map(_._2), sft)
   }
 
-  override def save(rdd: RDD[SimpleFeature], writeDataStoreParams: Map[String, String], writeTypeName: String): Unit =
-    throw new NotImplementedError("Converter provider is read-only")
+  override def save(rdd: RDD[SimpleFeature], params: Map[String, String], typeName: String): Unit = {
+    import scala.collection.JavaConversions._
+    val ds = DataStoreFinder.getDataStore(params).asInstanceOf[FileSystemDataStore]
+    try {
+      require(ds.getSchema(typeName) != null,
+        "Feature type must exist before calling save.  Call createSchema on the DataStore first.")
+    } finally {
+      ds.dispose()
+    }
+
+    rdd.foreachPartition { iter =>
+      val ds = DataStoreFinder.getDataStore(params).asInstanceOf[FileSystemDataStore]
+      val featureWriter = ds.getFeatureWriterAppend(typeName, Transaction.AUTO_COMMIT)
+      try {
+        iter.foreach { rawFeature =>
+          FeatureUtils.copyToWriter(featureWriter, rawFeature, useProvidedFid = true)
+          featureWriter.write()
+        }
+      } finally {
+        IOUtils.closeQuietly(featureWriter)
+        ds.dispose()
+      }
+    }
+  }
 }

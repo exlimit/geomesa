@@ -13,17 +13,16 @@ import org.locationtech.geomesa.fs.storage.api.{FileSystemStorage, Partition}
 import org.opengis.feature.simple.SimpleFeatureType
 import org.opengis.filter.Filter
 
-object PartitionUtils {
+object FsQueryPlanning {
 
-  // TODO: don't list storage partitions as there could be too many
   def getPartitionsForQuery(storage: FileSystemStorage,
                             sft: SimpleFeatureType,
                             q: Query): Seq[Partition] = {
     import scala.collection.JavaConversions._
+
     // Get the partitions from the partition scheme
     // if the result is empty, then scan all partitions
     // TODO: can we short-circuit if the query is outside the bounds
-
     val storagePartitions = storage.listPartitions(sft.getTypeName)
     if (q.getFilter == Filter.INCLUDE) {
       storagePartitions
@@ -32,9 +31,8 @@ object PartitionUtils {
       val partitionScheme = storage.getPartitionScheme(sft.getTypeName)
       val coveringPartitions = partitionScheme.getCoveringPartitions(q.getFilter).map(storage.getPartition)
       if (coveringPartitions.isEmpty) {
-        storagePartitions
+        storagePartitions //TODO should this ever happen?
       } else {
-        // TODO: for now we intersect the two to find the real files and not waste too much time
         coveringPartitions.intersect(storagePartitions)
       }
     }

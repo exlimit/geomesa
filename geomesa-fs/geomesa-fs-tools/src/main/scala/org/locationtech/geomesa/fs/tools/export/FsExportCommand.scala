@@ -16,7 +16,7 @@ import org.geotools.data.Query
 import org.geotools.filter.text.ecql.ECQL
 import org.locationtech.geomesa.fs.{FileSystemDataStore, FileSystemDataStoreParams}
 import org.locationtech.geomesa.fs.tools.{FsDataStoreCommand, FsParams}
-import org.locationtech.geomesa.tools.Command
+import org.locationtech.geomesa.tools.{Command, RequiredTypeNameParam}
 import org.locationtech.geomesa.tools.export.formats._
 import org.locationtech.geomesa.tools.export.{DataExportParams, ExportCommand, ExportParams}
 import org.locationtech.geomesa.tools.utils.DataFormats
@@ -101,10 +101,10 @@ class FsExportCommand extends FsDataStoreCommand with MethodProfiling with LazyL
   }
 }
 
-trait ThreadsParam {
-  @Parameter(names = Array("--threads"), description = "threads (start with 1)", required = true)
+trait OptionalQueryThreads {
+  @Parameter(names = Array("--query-threads"), description = "threads (start with 1)", required = false)
   var threads: java.lang.Integer = _
 }
 
 @Parameters(commandDescription = "Export features from a GeoMesa data store")
-class FsExportParams extends FsParams with DataExportParams with ExportParams with ThreadsParam
+class FsExportParams extends FsParams with DataExportParams with RequiredTypeNameParam with OptionalQueryThreads

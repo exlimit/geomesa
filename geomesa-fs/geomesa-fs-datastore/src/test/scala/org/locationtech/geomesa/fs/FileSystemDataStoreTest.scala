@@ -15,6 +15,7 @@ import org.apache.commons.io.FileUtils
 import org.geotools.data.{DataStoreFinder, Query, Transaction}
 import org.geotools.filter.identity.FeatureIdImpl
 import org.geotools.geometry.jts.JTSFactoryFinder
+import org.joda.time.format.ISODateTimeFormat
 import org.junit.runner.RunWith
 import org.locationtech.geomesa.features.ScalaSimpleFeature
 import org.locationtech.geomesa.fs.storage.common.{DateTimeScheme, PartitionScheme}
@@ -28,7 +29,6 @@ class FileSystemDataStoreTest extends Specification {
 
   sequential
 
-
   "FileSystemDataStore" should {
     "pass a test" >> {
       val dir = new java.io.File("/tmp/awetmpawet")
@@ -37,13 +37,14 @@ class FileSystemDataStoreTest extends Specification {
       val gf = JTSFactoryFinder.getGeometryFactory
       val sft = SimpleFeatureTypes.createType("test", "name:String,age:Int,dtg:Date,*geom:Point:srid=4326")
 
-      val sf = new ScalaSimpleFeature("1", sft, Array("test", Integer.valueOf(100), new java.util.Date, gf.createPoint(new Coordinate(10, 10))))
+      val sf = new ScalaSimpleFeature("1", sft, Array("test", Integer.valueOf(100),
+        ISODateTimeFormat.dateTime().parseDateTime("2017-06-05T04:03:02.0001Z").toDate, gf.createPoint(new Coordinate(10, 10))))
 
       import scala.collection.JavaConversions._
       val ds = DataStoreFinder.getDataStore(Map(
         "fs.path" -> dir.getPath,
         "fs.encoding" -> "parquet"))
-      val partitionScheme = new DateTimeScheme("yyyy/MM", ChronoUnit.MONTHS, 1, sft, "dtg")
+      val partitionScheme = new DateTimeScheme(DateTimeScheme.Formats.YearMonthDay, ChronoUnit.DAYS, 1, sft, "dtg")
       PartitionScheme.addToSft(sft, partitionScheme)
       ds.createSchema(sft)
 
@@ -53,6 +54,16 @@ class FileSystemDataStoreTest extends Specification {
       s.setAttributes(sf.getAttributes)
       fw.write()
       fw.close()
+
+      // Metadata, schema, and partition file checks
+      new java.io.File("/tmp/awetmpawet/test/metadata").exists() must beTrue
+      new java.io.File("/tmp/awetmpawet/test/schema.sft").exists() must beTrue
+      new java.io.File("/tmp/awetmpawet/test/2017/06/05.parquet").exists() must beTrue
+      new java.io.File("/tmp/awetmpawet/test/2017/06/05.parquet").isFile must beTrue
+
+      val parts = FileUtils.readLines(new java.io.File("/tmp/awetmpawet/test/metadata"))
+      parts.size mustEqual 1
+      parts.head mustEqual "2017/06/05"
 
       ds.getTypeNames must have size 1
       val fs = ds.getFeatureSource("test")
