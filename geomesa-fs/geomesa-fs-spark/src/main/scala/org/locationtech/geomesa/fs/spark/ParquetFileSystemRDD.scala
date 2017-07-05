@@ -71,6 +71,10 @@ class ParquetFileSystemRDD extends SpatialRDDProvider with LazyLogging {
       ParquetInputFormat.setFilterPredicate(conf, f)
     }
 
+    // Need this for query planning
+    conf.set("parquet.filter.dictionary.enabled", "true")
+    job.getConfiguration.set("parquet.filter.dictionary.enabled", "true")
+
     // Now set the modified geotools filter
     SFParquetInputFormat.setGeoToolsFilter(job.getConfiguration, modifiedGT)
     conf.set(SFParquetInputFormat.GeoToolsFilterKey, job.getConfiguration.get(SFParquetInputFormat.GeoToolsFilterKey))

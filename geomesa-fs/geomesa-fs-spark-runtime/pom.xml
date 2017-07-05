@@ -112,6 +112,10 @@
                                     <pattern>org.apache.commons.codec</pattern>
                                     <shadedPattern>org.locationtech.geomesa.shaded.org.apache.commons.codec</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>org.apache.parquet</pattern>
+                                    <shadedPattern>org.locationtech.geomesa.shaded.org.apache.parquet</shadedPattern>
+                                </relocation>
                             </relocations>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />

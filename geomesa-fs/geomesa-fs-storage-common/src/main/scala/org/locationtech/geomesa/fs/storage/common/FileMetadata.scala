@@ -9,18 +9,15 @@
 package org.locationtech.geomesa.fs.storage.common
 
 import java.io.IOException
+import java.util
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.locationtech.geomesa.fs.storage.api.Metadata
 
-trait Metadata {
-  def addPartition(partition: String): Unit
-  def addPartitions(partitions: Seq[String]): Unit
-  def getPartitions: Seq[String]
-}
-
+import scala.collection.JavaConversions._
 
 class FileMetadata(fs: FileSystem,
                    path: Path,
@@ -44,7 +41,7 @@ class FileMetadata(fs: FileSystem,
 
   override def addPartition(partition: String): Unit =  addPartitions(List(partition))
 
-  override def addPartitions(toAdd: Seq[String]): Unit = {
+  override def addPartitions(toAdd: java.util.List[String]): Unit = {
     val parts = (load() ++ toAdd).distinct
     val out = path.getFileSystem(conf).create(path, true)
     parts.foreach { p => out.writeBytes(p); out.write('\n') }
@@ -55,9 +52,8 @@ class FileMetadata(fs: FileSystem,
     logger.info(s"wrote ${parts.size} partitions to metadata file")
   }
 
-  override def getPartitions: Seq[String] = {
+  override def getPartitions: java.util.List[String] = {
     if (cached == null) cached = load()
     cached
   }
-
 }

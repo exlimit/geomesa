@@ -8,7 +8,7 @@
 
 package org.locationtech.geomesa.fs.tools.ingest
 
-import java.io.File
+import java.io.{File, IOException}
 import java.lang.Iterable
 
 import com.typesafe.config.Config
@@ -22,8 +22,9 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.security.TokenCache
 import org.apache.hadoop.tools.{DistCp, DistCpOptions}
-import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.ContextUtil
+import org.apache.parquet.hadoop.{ParquetOutputCommitter, ParquetOutputFormat}
 import org.geotools.factory.Hints
 import org.locationtech.geomesa.features.SerializationOption.SerializationOptions
 import org.locationtech.geomesa.features.kryo.KryoFeatureSerializer
@@ -69,7 +70,6 @@ class ParquetConverterJob(sft: SimpleFeatureType,
 
     // Ensure that the reducers don't start to early (default is at 0.05 which takes all the map slots and isn't needed)
     job.getConfiguration.set("mapreduce.job.reduce.slowstart.completedmaps", ".90")
-
     job.getConfiguration.set("mapreduce.job.user.classpath.first", "true")
 
     // Output format
@@ -77,10 +77,19 @@ class ParquetConverterJob(sft: SimpleFeatureType,
     job.setOutputKeyClass(classOf[Void])
     job.setOutputValueClass(classOf[SimpleFeature])
 
-    // Super important
-    job.getConfiguration.set(ParquetOutputFormat.JOB_SUMMARY_LEVEL, ParquetOutputFormat.JobSummaryLevel.NONE.toString)
+    // Parquet Options
+    val summaryLevel = Option(sft.getUserData.get(ParquetOutputFormat.JOB_SUMMARY_LEVEL).asInstanceOf[String])
+      .getOrElse(ParquetOutputFormat.JobSummaryLevel.ALL.toString)
+    job.getConfiguration.set(ParquetOutputFormat.JOB_SUMMARY_LEVEL, summaryLevel)
+    Command.user.info(s"Parquet metadata summary level is $summaryLevel")
 
-    ParquetOutputFormat.setCompression(job, CompressionCodecName.SNAPPY)
+    val compression = Option(sft.getUserData.get(ParquetOutputFormat.COMPRESSION).asInstanceOf[String])
+      .map(CompressionCodecName.valueOf)
+      .getOrElse(CompressionCodecName.SNAPPY)
+    ParquetOutputFormat.setCompression(job, compression)
+    Command.user.info(s"Parquet compression is $compression")
+
+    // More Parquet config
     ParquetOutputFormat.setWriteSupportClass(job, classOf[SimpleFeatureWriteSupport])
     ParquetConverterJob.setSimpleFeatureType(job.getConfiguration, sft)
 
@@ -104,11 +113,11 @@ class ParquetConverterJob(sft: SimpleFeatureType,
     // Do this earlier than the data copy bc its throwing errors and shit
     val res = (written(job), failed(job))
 
-    if (job.isSuccessful) {
-      if (tempPath.isDefined) {
-        distCopy(tempPath.get, dsPath, sft, job.getConfiguration)
-      }
-    } else {
+    val ret = job.isSuccessful && {
+      if (tempPath.isDefined) distCopy(tempPath.get, dsPath, sft, job.getConfiguration) else true
+    }
+
+    if (!ret) {
       Command.user.error(s"Job failed with state ${job.getStatus.getState} due to: ${job.getStatus.getFailureInfo}")
     }
 
@@ -170,6 +179,25 @@ class ParquetConverterJob(sft: SimpleFeatureType,
 }
 
 object ParquetConverterJob {
+
+  def listFiles(path: Path, conf: Configuration, suffix: String): Seq[Path] = {
+    val fs = path.getFileSystem(conf)
+    val listing = fs.listFiles(path, true)
+
+    val result = mutable.ListBuffer.empty[Path]
+    while(listing.hasNext) {
+      val next = listing.next()
+      if (next.isFile) {
+        val p = next.getPath
+        if (p.getName.endsWith(suffix)) {
+          result += p
+        }
+      }
+    }
+
+    result
+  }
+
   def setSimpleFeatureType(conf: Configuration, sft: SimpleFeatureType): Unit = {
     // Validate that there is a partition scheme
     org.locationtech.geomesa.fs.storage.common.PartitionScheme.extractFromSft(sft)
@@ -232,7 +260,35 @@ class DummyReducer extends Reducer[Text, BytesWritable, Void, SimpleFeature] {
 
 }
 
+class SchemeOutputCommitter(extension: String,
+                            outputPath: Path,
+                            context: TaskAttemptContext)
+  extends FileOutputCommitter(outputPath, context) with LazyLogging {
+
+  @throws[IOException]
+  override def commitJob(jobContext: JobContext) {
+    super.commitJob(jobContext)
+    val conf = ContextUtil.getConfiguration(jobContext)
+    ParquetConverterJob.listFiles(outputPath, conf, extension).map(_.getParent).distinct.foreach { path =>
+      ParquetOutputCommitter.writeMetaDataFile(conf, path)
+      logger.info(s"Wrote metadata file for path $path")
+    }
+  }
+}
+
 class SchemeOutputFormat extends ParquetOutputFormat[SimpleFeature] {
+
+  val extension = ".parquet" // TODO this has to match the FS from the geomesa-fs abstraction need to do that
+  private var commiter: SchemeOutputCommitter = _
+
+  override def getOutputCommitter(context: TaskAttemptContext): OutputCommitter = {
+    if (commiter == null) {
+      val output = FileOutputFormat.getOutputPath(context)
+      commiter = new SchemeOutputCommitter(extension, output, context)
+    }
+    commiter
+  }
+
   override def getRecordWriter(context: TaskAttemptContext): RecordWriter[Void, SimpleFeature] = {
 
     val sft = ParquetConverterJob.getSimpleFeatureType(context.getConfiguration)
@@ -247,10 +303,9 @@ class SchemeOutputFormat extends ParquetOutputFormat[SimpleFeature] {
       var sentToParquet: Counter = context.getCounter(GeoMesaOutputFormat.Counters.Group, "sentToParquet")
 
       override def write(key: Void, value: SimpleFeature): Unit = {
-        val basePath = name + "/" + partitionScheme.getPartitionName(value)         // TODO once this is done we need to fix up these file names to do parts or something?
+        val basePath = name + "/" + partitionScheme.getPartitionName(value) // TODO once this is done we need to fix up these file names to do parts or something?
 
         def initWriter() = {
-          val extension = ".parquet" // TODO this has to match the FS from the geomesa-fs abstraction need to do that
           val committer = getOutputCommitter(context).asInstanceOf[FileOutputCommitter]
           val file = new Path(committer.getWorkPath, basePath + extension)
           logger.info(s"Creating Date scheme record writer at path ${file.toString}")

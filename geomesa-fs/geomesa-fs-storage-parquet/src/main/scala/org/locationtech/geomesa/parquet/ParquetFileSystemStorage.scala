@@ -23,7 +23,7 @@ import org.apache.parquet.filter2.compat.FilterCompat
 import org.apache.parquet.hadoop.ParquetReader
 import org.geotools.data.Query
 import org.locationtech.geomesa.fs.storage.api._
-import org.locationtech.geomesa.fs.storage.common.{FileMetadata, LeafStoragePartition, Metadata, StorageUtils}
+import org.locationtech.geomesa.fs.storage.common.{FileMetadata, LeafStoragePartition, StorageUtils}
 import org.locationtech.geomesa.index.planning.QueryPlanner
 import org.locationtech.geomesa.utils.geotools.SimpleFeatureTypes
 import org.locationtech.geomesa.utils.io.CloseQuietly
@@ -70,6 +70,7 @@ class ParquetFileSystemStorage(root: Path,
             StorageUtils.buildPartitionList(root, fs, typeName, getPartitionScheme(typeName), dataFileExtention)
               .map(getPartition)
               .map(_.getName)
+          import scala.collection.JavaConversions._
           meta.addPartitions(partitions)
         }
         meta
@@ -77,7 +78,6 @@ class ParquetFileSystemStorage(root: Path,
     })
 
   override def notifyPartitions(typeName: String, partitionNames: util.List[String]): Unit = {
-    import scala.collection.JavaConversions._
     metadata(typeName).addPartitions(partitionNames)
   }
 
@@ -226,6 +226,8 @@ class ParquetFileSystemStorage(root: Path,
   import scala.collection.JavaConversions._
   override def getPaths(typeName: String, partition: Partition): java.util.List[URI] =
     List(new Path(new Path(root, typeName), partition.getName).suffix(s".$dataFileExtention").toUri)
+
+  override def getMetadata(typeName: String): Metadata = metadata(typeName)
 }
 
 object ParquetFileSystemStorage {

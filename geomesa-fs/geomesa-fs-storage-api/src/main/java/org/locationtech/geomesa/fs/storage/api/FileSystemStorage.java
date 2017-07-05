@@ -34,4 +34,6 @@ public interface FileSystemStorage {
     FileSystemWriter getWriter(String typeName, Partition partition);
 
     List<URI> getPaths(String typeName, Partition partition);
+
+    Metadata getMetadata(String typeName);
 }

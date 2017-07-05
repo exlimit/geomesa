@@ -31,6 +31,7 @@ class FileSystemDataStoreTest extends Specification {
 
   "FileSystemDataStore" should {
     "pass a test" >> {
+      // TODO use random dir path
       val dir = new java.io.File("/tmp/awetmpawet")
       try { dir.mkdirs()}
 
