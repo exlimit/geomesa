@@ -29,11 +29,8 @@ class FileSystemDataStore(fs: FileSystem,
                           val root: Path,
                           val storage: FileSystemStorage,
                           readThreads: Int,
-                          namespaceStr: String,
                           conf: Configuration) extends ContentDataStore {
   import scala.collection.JavaConversions._
-
-  setNamespaceURI(namespaceStr)
 
   override def createTypeNames(): util.List[Name] = {
     storage.listFeatureTypes().map(name => new NameImpl(getNamespaceURI, name.getTypeName) : Name).asJava
@@ -66,11 +63,12 @@ class FileSystemDataStoreFactory extends DataStoreFactorySpi {
     val storage = storageFactory.iterator().filter(_.canProcess(params)).map(_.build(params)).next()
     val fs = path.getFileSystem(conf)
 
-    val namespace = Option(NamespaceParam.lookUp(params)).map(_.asInstanceOf[String]).orNull
-
     val readThreads = Option(ReadThreadsParam.lookUp(params)).map(_.asInstanceOf[java.lang.Integer])
       .getOrElse(ReadThreadsParam.getDefaultValue.asInstanceOf[java.lang.Integer])
-    new FileSystemDataStore(fs, path, storage, readThreads, namespace, conf)
+
+    val ds = new FileSystemDataStore(fs, path, storage, readThreads, conf)
+    Option(NamespaceParam.lookUp(params).asInstanceOf[String]).foreach(ds.setNamespaceURI)
+    ds
   }
 
   override def createNewDataStore(params: util.Map[String, io.Serializable]): DataStore =
@@ -84,9 +82,9 @@ class FileSystemDataStoreFactory extends DataStoreFactorySpi {
   override def getParametersInfo: Array[DataAccessFactory.Param] =
     Array(PathParam, EncodingParam, NamespaceParam)
 
-  override def getDescription: String = "GeoMesa FileSystem Data Store"
+  override def getDisplayName: String = "File System (GeoMesa)"
 
-  override def getDisplayName: String = "GeoMesa-FS"
+  override def getDescription: String = "File System Based Data Store"
 
   override def getImplementationHints: util.Map[RenderingHints.Key, _] =
     new util.HashMap[RenderingHints.Key, Serializable]()
@@ -101,6 +99,7 @@ object FileSystemDataStoreParams {
   val SftNameParam         = new Param("fs.options.sft.name", classOf[String], "SimpleFeatureType Name", false)
   val SftConfigParam       = new Param("fs.options.sft.conf", classOf[String], "SimpleFeatureType Typesafe Config", false)
 
-  val NamespaceParam       = new Param("namespace", classOf[String], "Namespace", false)
   val ReadThreadsParam     = new Param("read-threads", classOf[java.lang.Integer], "Read Threads", false, 4)
+
+  val NamespaceParam       = new Param("namespace", classOf[String], "Namespace", false)
 }
