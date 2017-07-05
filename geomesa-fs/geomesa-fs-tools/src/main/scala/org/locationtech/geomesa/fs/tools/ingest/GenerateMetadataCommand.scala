@@ -14,7 +14,7 @@ import org.locationtech.geomesa.fs.tools.{FsDataStoreCommand, FsParams}
 import org.locationtech.geomesa.tools.{Command, RequiredTypeNameParam}
 
 
-class GenerateMetadataFileCommand extends FsDataStoreCommand {
+class GenerateMetadataCommand extends FsDataStoreCommand {
   override def params: GenMetaCommands = new GenMetaCommands
 
   override val name: String = "gen-metadata"

@@ -10,7 +10,7 @@ package org.locationtech.geomesa.fs.tools
 
 import com.beust.jcommander.JCommander
 import org.locationtech.geomesa.fs.tools.export.FsExportCommand
-import org.locationtech.geomesa.fs.tools.ingest.FsIngestCommand
+import org.locationtech.geomesa.fs.tools.ingest.{FsIngestCommand, GenerateMetadataCommand}
 import org.locationtech.geomesa.fs.tools.status.{FsDescribeSchemaCommand, FsGetSftConfigCommand, FsGetTypeNamesCommand}
 import org.locationtech.geomesa.tools.export.GenerateAvroSchemaCommand
 import org.locationtech.geomesa.tools.status.{EnvironmentCommand, HelpCommand, VersionCommand}
@@ -30,6 +30,7 @@ object FsRunner extends Runner {
     new VersionCommand,
     new FsGetSftConfigCommand,
     new GenerateAvroSchemaCommand,
-    new ConvertCommand
+    new ConvertCommand,
+    new GenerateMetadataCommand
   )
 }
